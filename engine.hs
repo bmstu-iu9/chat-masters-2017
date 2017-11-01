@@ -1,20 +1,75 @@
-import Network
-import Control.Concurrent
+import Control.Monad
+import Data.Char
 import System.IO
-import System.Directory 
+import Network
+import Data.Time.LocalTime
 
+data RequestType = GET | POST deriving (Show)
+data Request = Request { rtype :: RequestType, path :: String, args :: [(String, String)], options :: [(String,String)] }
+data Response = Response { version :: String, statuscode :: Int }
+
+instance Show Request where
+  show r = "Request { " ++ show((rtype r)) ++ " " ++ (path r) ++ "\nArguments here:\n" ++ (foldl (\acc (k,v) -> acc ++ "\n  " ++ k ++ ": " ++ v) "" (args r)) ++ "\nOptions here:\n" ++ (foldl (\acc (k,v) -> acc ++ "\n  " ++ k ++ ": " ++ v) "" (options r)) ++ "\n}"
+
+instance Show Response where
+  show r = version(r) ++ " " ++ show(statuscode(r)) ++ " " ++ (case statuscode(r) of
+    100 -> "Continue"
+    200 -> "OK"
+    404 -> "Not Found") ++ "\r\n\r\n"
+
+fromString :: String -> RequestType
+fromString t = case t of
+  "GET" -> GET
+  "POST" -> POST
+
+respond :: Request -> Handle -> IO ()
+respond request handle = do
+  putStrLn $ show request
+  let response = Response {version = "HTTP/1.1", statuscode = 200}
+  hPutStr handle $ show(response)
+  time <- getZonedTime
+  hPutStr handle $ "Haskell says HELLO.\nThe time is currently " ++ show(time) ++ "\n\n\nHere is some info from your session:\n" ++ show(request)
+
+--- This should really validate input or something. Separate validator? Or as-we-go?
+parseRequestHelper :: ([String], [(String,String)]) -> [(String,String)]
+parseRequestHelper ([], accum) = accum
+parseRequestHelper ((l:rest), accum) 
+  | (length (words l)) < 2 = accum
+  | otherwise = parseRequestHelper(rest, accum ++ [(reverse . tail . reverse . head . words $ l, unwords . tail . words $ l)] )
+
+parseRequest :: [String] -> Request
+parseRequest lns = case (words (head lns)) of
+  [t,p,_] -> Request {rtype=(fromString t), path=p, args=[("test", "test")], options=parseRequestHelper((tail lns),[])}
+
+splitBy del str = helper del str []   
+    where 
+        helper _ [] acc = let acc0 = reverse acc in [acc0] 
+        helper del (x:xs) acc   
+            | x==del    = let acc0 = reverse acc in acc0 : helper del xs []  
+            | otherwise = let acc0 = x : acc     in helper del xs acc0 
+
+parseArgs args = case args of 
+  [] -> []
+  _ -> splitBy '&' (head $ args)
+
+parsePath str = do
+  let baseDel = splitBy '?' str
+  let base = head baseDel
+  let tl = tail $ baseDel
+  let args = parseArgs tl
+  args
+
+handleAccept :: Handle -> String -> IO ()
+handleAccept handle hostname = do 
+  putStrLn $ "Handling request from " ++ hostname
+  request <- fmap (parseRequest . lines) (hGetContents handle)
+  respond request handle
+  return ()
+  
 main = withSocketsDo $ do
-    sock <- listenOn $ PortNumber 5002
-    loop sock
- 
-loop sock = do
-   (h,_,_) <- accept sock
-   forkIO $ body h
-   loop sock
-  where
-   body h = do
-       d <- getCurrentDirectory
-       hPutStr h ("HTTP/1.0 200 OK\r\nContent-Length: " ++ show(length(show(d))) ++ "\r\n\r\n" ++ show (d) ++ "\r\n")
-       hFlush h
-       hClose h
-   
+  sock <- listenOn (PortNumber 5002)
+  putStrLn "Listening on port 5002"
+  forever $ do
+    (handle, hostname, port) <- accept sock
+    handleAccept handle hostname
+    hClose handle
