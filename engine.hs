@@ -3,16 +3,15 @@ import Data.Char
 import System.IO
 import Network
 import Data.Time.LocalTime
-import qualified Data.Map as Map
-import Prelude hiding (lookup)
 import Data.Maybe
+import Data.Char
+import Debug.Trace
 
-domains = ["main", "register", "login"]
-redirects = Map.fromList [("/","/main")]
+redirects = [("/","/main")]
 
 data RequestType = GET | POST deriving (Show)
 data Request = Request { rtype :: RequestType, path :: String, args :: [(String, String)], options :: [(String,String)] }
-data Response = Response { version :: String, statuscode :: Int, target :: String }
+data Response = Response { version :: String, statuscode :: Int, headers :: [String] }
 
 instance Show Request where
   show r = "Request { " ++ show((rtype r)) ++ " " ++ (path r) ++ "\nArguments here:\n" ++ show (args r) ++ "\nOptions here:\n" ++ show (options r) ++ "\n}"
@@ -21,41 +20,48 @@ instance Show Response where
   show r = version(r) ++ " " ++ show(statuscode(r)) ++ " " ++ (case statuscode(r) of
     100 -> "Continue"
     200 -> "OK"
-    301 -> "Moved Permanently\r\nLocation: " ++ target(r)
-    404 -> "Not Found") ++ "\r\n\r\n"
+    301 -> "Moved Permanently"
+    303 -> "See Other"
+    404 -> "Not Found") ++ "\r\n" ++ (foldl (\acc str -> acc ++ str ++ "\r\n") "" (headers r)) ++ "\r\n"
 
 fromString :: String -> RequestType
 fromString t = case t of
   "GET" -> GET
-  "POST" -> POST
+  "POST" -> POST 
 
-mainPage request = answer
-  where answer = "Main page is under developing"
+mainPage request = answer where
+  cookies = lookup "Cookie" (options(request))
+  cookiesList = if cookies /= Nothing
+    then parseCookie (fromJust cookies)
+    else []
+  user_id = lookup "user_id" cookiesList
+  answer = if user_id /= Nothing
+   then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Main page is under developing"
+   else show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Location: /login"]})
 
 registerPage request = answer
-  where answer = "Register page is under developing"
+  where answer = show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Register page is under developing"
 
-loginPage request = answer
-  where answer = "Login page is under developing"
+loginPage request = answer where
+  login = lookup "login" (args(request))
+  answer = if login /= Nothing
+    then show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Set-Cookie: user_id=" ++ fromJust login]}) ++ "Autorized successfully"
+    else show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Login page is under developing"
 
 errorPage request = answer
-  where answer = "Page is not found"
+  where answer = show(Response {version = "HTTP/1.1", statuscode = 404, headers=[]}) ++ "Page is not found"
 
 respond :: Request -> Handle -> IO ()
-respond request handle = hPutStr handle $ show(responseHead) ++ responseBody where
-  redirect = Map.lookup (path request) redirects
-  responseHead = if elem (path request) domains
-    then Response {version = "HTTP/1.1", statuscode = 200, target = ""}
-    else if redirect /= Nothing
-     then Response {version = "HTTP/1.1", statuscode = 301, target = fromJust redirect}
-     else Response {version = "HTTP/1.1", statuscode = 404, target = ""}
-  responseBody = case (path request) of
-    "/main" -> mainPage request
-    "/register" -> registerPage request
-    "/login" -> loginPage request
-    otherwise -> errorPage request
+respond request handle = hPutStr handle $ answer where
+  redirect = lookup (path request) redirects  
+  answer = if redirect /= Nothing
+     then show(Response {version = "HTTP/1.1", statuscode = 301, headers=["Location: " ++ fromJust redirect]})
+     else case (path request) of
+      "/main" -> mainPage request
+      "/register" -> registerPage request
+      "/login" -> loginPage request
+      otherwise -> errorPage request
 
---- This should really validate input or something. Separate validator? Or as-we-go?
 parseRequestHelper :: ([String], [(String,String)]) -> [(String,String)]
 parseRequestHelper ([], accum) = accum
 parseRequestHelper ((l:rest), accum) 
@@ -77,7 +83,10 @@ parseArgs args = case args of
   [] -> []
   _ -> splitBy '&' (head $ args)
 
-list2Pair [f,s] = (f, s)
+trim = f . f
+   where f = reverse . dropWhile isSpace
+
+list2Pair [f,s] = (trim f, s)
 list2Pair [f] = (f, "")
 
 parsePath str = do
@@ -94,11 +103,16 @@ getDomain str = do
     [] -> []
     otherwise -> head baseDel
 
+parseCookie str = do
+  let list = splitBy ';' str
+  let modlist = map (splitBy '=') list
+  map list2Pair modlist
 
 handleAccept :: Handle -> String -> IO ()
 handleAccept handle hostname = do 
   putStrLn $ "Handling request from " ++ hostname
   request <- fmap (parseRequest . lines) (hGetContents handle)
+  putStrLn (show request)
   respond request handle
   return ()
   
