@@ -1,3 +1,5 @@
+import DBInterface
+
 import Control.Monad
 import Data.Char
 import System.IO
@@ -6,6 +8,8 @@ import Data.Time.LocalTime
 import Data.Maybe
 import Data.Char
 import Debug.Trace
+
+db = "db.db"
 
 redirects = [("/","/main")]
 
@@ -29,38 +33,49 @@ fromString t = case t of
   "GET" -> GET
   "POST" -> POST 
 
-mainPage request = answer where
+mainPage request = return answer where
   cookies = lookup "Cookie" (options(request))
   cookiesList = if cookies /= Nothing
     then parseCookie (fromJust cookies)
     else []
   user_id = lookup "user_id" cookiesList
   answer = if user_id /= Nothing
-   then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Main page is under developing"
+   then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Main page is under developing\r\nHello, " ++ (fromJust user_id)
    else show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Location: /login"]})
 
-registerPage request = answer
+registerPage request = return answer
   where answer = show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Register page is under developing"
 
-loginPage request = answer where
-  login = lookup "login" (args(request))
-  answer = if login /= Nothing
-    then show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Set-Cookie: user_id=" ++ fromJust login]}) ++ "Autorized successfully"
-    else show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Login page is under developing"
+loginPage request = do
+  answer where
+    login = lookup "login" (args(request))
+    pass = lookup "pass" (args(request))
+    answer = if ((login /= Nothing) && (pass /= Nothing))
+      then do
+        conn <- getSqlConnection db  
+        db_pass <- selectUserByName conn (fromJust login)
+        let sub_answer = if (null db_pass) 
+                          then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Such user is not exist"
+                          else if db_pass /= (fromJust pass)
+                                then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Password is incorrect"
+                                else show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Set-Cookie: user_id=" ++ fromJust login]}) ++ "Autorized successfully"
+        return sub_answer
+      else return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Login page is under developing"
 
-errorPage request = answer
+errorPage request = return answer
   where answer = show(Response {version = "HTTP/1.1", statuscode = 404, headers=[]}) ++ "Page is not found"
 
 respond :: Request -> Handle -> IO ()
-respond request handle = hPutStr handle $ answer where
-  redirect = lookup (path request) redirects  
-  answer = if redirect /= Nothing
-     then show(Response {version = "HTTP/1.1", statuscode = 301, headers=["Location: " ++ fromJust redirect]})
+respond request handle = do 
+  let redirect = lookup (path request) redirects  
+  answer <- if redirect /= Nothing
+     then return $ show(Response {version = "HTTP/1.1", statuscode = 301, headers=["Location: " ++ fromJust redirect]})
      else case (path request) of
       "/main" -> mainPage request
       "/register" -> registerPage request
       "/login" -> loginPage request
       otherwise -> errorPage request
+  hPutStr handle $ answer
 
 parseRequestHelper :: ([String], [(String,String)]) -> [(String,String)]
 parseRequestHelper ([], accum) = accum

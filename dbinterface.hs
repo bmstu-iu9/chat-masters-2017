@@ -1,8 +1,8 @@
+module DBInterface where
+
 import Database.HDBC
 import Database.HDBC.Sqlite3
 import Data.List
-
-db = "db.db"
 
 prepareUpdates [] = []
 prepareUpdates xs = map (\x -> show (fst x) ++ "=" ++ show (snd x)) xs
@@ -19,6 +19,16 @@ selectAllUsers conn = quickQuery' conn "SELECT * FROM users" []
 selectUsers :: IConnection conn => conn -> Int -> IO [[SqlValue]]
 selectUsers conn uid = quickQuery' conn "SELECT * FROM users WHERE u_id=?" [toSql uid]
 
+selectUserByName' :: IConnection conn => conn -> String -> IO [[SqlValue]]
+selectUserByName' conn name = quickQuery' conn "SELECT password FROM users WHERE username=?" [toSql name]
+
+selectUserByName conn name = do 
+  x <- selectUserByName' conn name
+  let y = if (null x) then [] else head x
+  let a = if (null y) then "" else (fromSql (head y)) :: [Char]
+  return a
+
+
 insertChat :: IConnection conn => conn -> IO Statement
 insertChat conn = prepare conn "INSERT INTO chat(c_uid,c_body) VALUES (?,?)"
 updateChat :: IConnection conn => conn -> IO Statement
@@ -33,6 +43,9 @@ selectUserChat :: IConnection conn => conn -> Int -> IO [[SqlValue]]
 selectUserChat conn uid = quickQuery' conn "SELECT * FROM chat WHERE c_mid NOT IN \
                                     \(SELECT hm_mid FROM hidden_messages WHERE hm_uid=?)" [toSql uid]
 
+getSqlConnection db = connectSqlite3 db
+
+{-
 main = do
   conn <- connectSqlite3 db
   insert_user <- insertUsers conn
@@ -47,3 +60,4 @@ main = do
   print (fromSql (y !! 2) :: String)
 
   disconnect conn
+-}
