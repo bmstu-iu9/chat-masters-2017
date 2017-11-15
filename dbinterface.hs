@@ -4,85 +4,101 @@ import Database.HDBC
 import Database.HDBC.Sqlite3
 import Data.List
 
-db :: String
-db = "db.db"
-
 joinByComma :: [String] -> String
 joinByComma = intercalate ","
 joinByAnd :: [String] -> String
 joinByAnd = intercalate " and "
---joinByOr :: [String] -> String
---joinByOr = intercalate " or "
 relate :: String -> String
 relate x = x ++ "=?"
 parenthesize :: String -> String
 parenthesize x = "(" ++ x ++ ")"
-
 makeCommaList :: [String] -> String
 makeCommaList xs = joinByComma $ map relate xs
 makeAndWheres :: [String] -> String
 makeAndWheres xs = joinByAnd $ map relate xs
---makeOrWheres :: [String] -> String
---makeOrWheres xs = joinByOr $ map relate xs
-
 makeSelect :: String -> [String] -> String -> String
 makeSelect table items criteria =
   "SELECT " ++ item_list ++ " FROM " ++ table ++ where_clause ++ ";"
   where
     item_list = if null items then "*" else joinByComma items
     where_clause = if null criteria then "" else " WHERE " ++ criteria
-
-select :: IConnection conn => conn -> String -> [String] -> String -> IO Statement
-select conn table items criteria = prepare conn $ makeSelect table items criteria
-selectAllUsers :: IConnection conn => conn -> IO Statement
-selectAllUsers conn = select conn "users" [] []
-selectUsersById :: IConnection conn => conn -> IO Statement
-selectUsersById conn = select conn "users" [] (relate "u_id")
-selectPassByName :: IConnection conn => conn -> IO Statement
-selectPassByName conn = select conn "users" ["password"] (relate "username")
-selectAllChat :: IConnection conn => conn -> IO Statement
-selectAllChat conn = select conn "chat" [] []
-selectUserChat :: IConnection conn => conn -> IO Statement
-selectUserChat conn = do
-  let banned = makeSelect "hidden_messages" ["hm_mid"] (relate "hm_uid")
-  select conn "chat" [] ("c_mid NOT IN " ++ banned)
-
 makeInsert :: String -> [String] -> String
 makeInsert table items =
   "INSERT INTO " ++ table ++ item_list ++ " VALUES " ++ val_list ++ ";"
   where
     item_list = parenthesize $ joinByComma items
     val_list = parenthesize $ joinByComma $ replicate (length items) "?"
-
-insertUsers :: IConnection conn => conn -> IO Statement
-insertUsers conn = prepare conn $ makeInsert "users" ["username", "password"]
-insertChat :: IConnection conn => conn -> IO Statement
-insertChat conn = prepare conn $ makeInsert "chat" ["c_uid", "c_body"]
-deleteChat :: IConnection conn => conn -> IO Statement
-deleteChat conn = prepare conn $ makeInsert "hidden_messages" ["hm_uid", "hm_mid"]
-
 makeUpdate :: String -> [String] -> String -> String
 makeUpdate table items criteria =
   "UPDATE " ++ table ++ " SET " ++ item_list ++ " WHERE " ++ where_clause ++ "?"
   where
     item_list = makeCommaList items
     where_clause = if null criteria then "" else " WHERE " ++ criteria
-
-updateChat :: IConnection conn => conn -> IO Statement
-updateChat conn = prepare conn $ makeUpdate "chat" ["c_body"] (relate "c_id")
-
 makeDelete :: String -> String -> String
 makeDelete table criteria =
   "DELETE FROM " ++ table ++ where_clause
   where where_clause = if null criteria then "" else " WHERE " ++ criteria
+
+selectX :: IConnection conn => conn -> String -> [String] -> String -> IO Statement
+selectX conn table items criteria = prepare conn $ makeSelect table items criteria
 deleteX :: IConnection conn => conn -> String -> String -> IO Statement
 deleteX conn table criteria = prepare conn $ makeDelete table criteria
 
+insertUsers :: IConnection conn => conn -> IO Statement
+insertUsers conn = prepare conn $ makeInsert "users" ["username", "password"]
+
+updateUsers :: IConnection conn => conn -> [String] -> IO Statement
+updateUsers conn items = prepare conn $ makeUpdate "users" items (relate "u_id")
+
 deleteUsers :: IConnection conn => conn -> IO Statement
 deleteUsers conn = deleteX conn "users" (relate "u_id")
+
+selectAllUsers :: IConnection conn => conn -> IO [[SqlValue]]
+selectAllUsers conn = quickQuery' conn "SELECT * FROM users" []
+
+selectAllUsers_stmt :: IConnection conn => conn -> IO Statement
+selectAllUsers_stmt conn = selectX conn "users" [] []
+
+selectUsersById :: IConnection conn => conn -> IO Statement
+selectUsersById conn = selectX conn "users" [] (relate "u_id")
+
+selectPassByName :: IConnection conn => conn -> IO Statement
+selectPassByName conn = selectX conn "users" ["password"] (relate "username")
+
+selectUsers :: IConnection conn => conn -> Int -> IO [[SqlValue]]
+selectUsers conn uid = quickQuery' conn "SELECT * FROM users WHERE u_id=?" [toSql uid]
+
+--
+selectUserByName' :: IConnection conn => conn -> String -> IO [[SqlValue]]
+selectUserByName' conn name = quickQuery' conn "SELECT password FROM users WHERE username=?" [toSql name]
+selectUserByName conn name = do
+  x <- selectUserByName' conn name
+  let y = if (null x) then [] else head x
+  let a = if (null y) then "" else (fromSql (head y)) :: [Char]
+  return a
+
+insertChat :: IConnection conn => conn -> IO Statement
+insertChat conn = prepare conn $ makeInsert "chat" ["c_uid", "c_body"]
+
+updateChat :: IConnection conn => conn -> IO Statement
+updateChat conn = prepare conn $ makeUpdate "chat" ["c_body"] (relate "c_id")
+
+deleteChat :: IConnection conn => conn -> IO Statement
+deleteChat conn = prepare conn "INSERT INTO hidden_message(hm_uid,hm_mid) VALUES (?,?)"
+
 undoDeleteChat :: IConnection conn => conn -> IO Statement
 undoDeleteChat conn = deleteX conn "hidden_messages" criteria
     where criteria = makeAndWheres ["hm_uid", "hm_mid"]
+
+selectAllChat :: IConnection conn => conn -> IO [[(String, SqlValue)]]
+selectAllChat conn = do
+  sel_stmt <- selectX conn "users" [] []
+  _ <- execute sel_stmt []
+  fetchAllRowsAL sel_stmt
+
+selectUserChat :: IConnection conn => conn -> Int -> IO [[SqlValue]]
+selectUserChat conn uid = quickQuery' conn "SELECT * FROM chat WHERE c_mid NOT IN \
+                                    \(SELECT hm_mid FROM hidden_messages WHERE hm_uid=?)" [toSql uid]
 
 cleanDb :: IConnection conn => conn -> IO ()
 cleanDb conn = do
@@ -118,33 +134,19 @@ insertSampleData conn = do
                        ,[toSql (1 :: Int), toSql (7 :: Int)]
                        ,[toSql (3 :: Int), toSql (4 :: Int)]
                        ]
-{-example_select conn = do
-  q <- select conn "users" ["username", "password"] ["u_id"]
-  execute q [toSql (1 :: Integer)]
-  x1 <- fetchRowAL q -- Nothing | Just
-  print x1
-  execute q [toSql (1 :: Integer)]
-  x2 <- fetchRowMap q -- Nothing | Just
-  print x2
-  execute q [toSql (1 :: Integer)]
-  x3 <- fetchAllRowsAL q -- []
-  print x3
-  execute q [toSql (1 :: Integer)]
-  x4 <- fetchAllRowsMap q -- []
-  print x4-}
+
+getSqlConnection db = connectSqlite3 db
 
 {-
-main :: IO ()
 main = do
   conn <- connectSqlite3 db
-  cleanDb conn
-  commit conn
-  insertSampleData conn
-  commit conn
+  insert_user <- insertUsers conn
+  --execute insert_user [toSql "aaa", toSql "zzz"]
+  --commit conn
   select_users <- selectAllUsers conn
   x <- quickQuery' conn "SELECT * FROM users" []
   print x
-  let y =  head x
+  let y =  (head x)
   print (fromSql (head y) :: Integer)
   print (fromSql (y !! 1) :: String)
   print (fromSql (y !! 2) :: String)
