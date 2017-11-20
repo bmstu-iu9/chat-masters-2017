@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>IU9 Haskell Chat 2017</title>
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <!-- Latest compiled JavaScript -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+        <script type="text/JavaScript"
+            src="https://code.jquery.com/jquery-1.6.3.min.js"></script>
+        <script type="text/JavaScript" src="client.js"></script>
+        <link rel="stylesheet" type="text/css" href="screen.css" />
+    </head>
+    <body>
+        <h1>IU9 Chat 2017</h1>
+        <div id="main">
+            <div id="warnings">
+            </div>
+            <div id="join-section">
+                <h2>Join:</h2>
+                <form id="join-form" action="javascript: void(0)">
+                    <label for="user">Please enter your username: </label>
+                    <input id="user" type="text" size="12" />
+                    <input id="welcome" type="submit" class="btn btn-default" value="Join" />
+                </form>
+            </div>
+            <div id="users-section" style="display: none">
+                <h2>User list</h2>
+                <ul id="users">
+                </ul>
+            </div>
+            <div id="chat-section" style="display: none">
+                <h2>Chat</h2>
+                <div id="messages">
+                </div>
+                <br />
+                <form id="message-form" action="javascript: void(0)">
+                    <input id="text" type="text" size="40" />
+                    <input id="talk" type="submit" value="Send" />
+                </form>
+            </div>
+        </div>
+    </body>
+</html>
