@@ -1,11 +1,5 @@
 function createChatSocket() {
-    if(window.location.host == '') {
-        /* Running on localhost */
-        return new WebSocket('ws://localhost:9160/');
-    } else {
-        /* Running in "production" */
-        return new WebSocket('wss://jaspervdj.be/websockets/example/chat/');
-    }
+    return new WebSocket('ws://localhost:9160/');
 }
 
 var users = [];
@@ -37,17 +31,12 @@ function onMessage(event) {
     }
 }
 
-$(document).ready(function () {
-    $('#join-form').submit(function () {
-        $('#warnings').html('');
-        var user = $('#user').val();
-        var ws = createChatSocket();
-
-        ws.onopen = function() {
-            ws.send('Hi! I am ' + user);
-        };
-
-        ws.onmessage = function(event) {
+function connect(name){
+    var ws = createChatSocket();    
+    ws.onopen = function() {
+            ws.send('Hi! I am ' + name);
+    };
+    ws.onmessage = function(event) {
             if(event.data.match('^Welcome! Users: ')) {
                 /* Calculate the list of initial users */
                 var str = event.data.replace(/^Welcome! Users: /, '');
@@ -75,7 +64,5 @@ $(document).ready(function () {
         };
 
         $('#join').append('Connecting...');
+}
 
-        return false;
-    });
-});

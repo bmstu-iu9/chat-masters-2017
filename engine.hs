@@ -8,6 +8,8 @@ import Data.Time.LocalTime
 import Data.Maybe
 import Data.Char
 import Debug.Trace
+import System.Directory
+import Text.Printf
 
 db = "db.db"
 
@@ -33,18 +35,36 @@ fromString t = case t of
   "GET" -> GET
   "POST" -> POST 
 
-mainPage request = return answer where
-  cookies = lookup "Cookie" (options(request))
-  cookiesList = if cookies /= Nothing
-    then parseCookie (fromJust cookies)
-    else []
-  user_id = lookup "user_id" cookiesList
-  answer = if user_id /= Nothing
-   then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Main page is under developing\r\nHello, " ++ (fromJust user_id)
-   else show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Location: /login"]})
+mainPage request = do
+  html <- readFile "client.html" 
+  let answer = if user_id /= Nothing
+                then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ (printf html (fromJust user_id))
+                --then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Main page is under developing\r\nHello, " ++ (fromJust user_id)
+                else show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Location: /login"]})
+  return answer where
+    cookies = lookup "Cookie" (options(request))
+    cookiesList = if cookies /= Nothing
+                    then parseCookie (fromJust cookies)
+                    else []
+    user_id = lookup "user_id" cookiesList
+  
 
-registerPage request = return answer
-  where answer = show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Register page is under developing"
+registerPage request = do
+  answer where
+    login = lookup "login" (args(request))
+    pass = lookup "pass" (args(request))
+    answer = if ((login /= Nothing) && (pass /= Nothing))
+      then do
+        conn <- getSqlConnection db  
+        db_pass <- selectUserByName conn (fromJust login)
+        sqlDisconnect conn
+        sub_answer <- if (not (null db_pass)) 
+                          then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Such user is already exist"
+                          else do 
+                            insertUser conn (fromJust login) (fromJust pass)
+                            return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Registration is successfull"
+        return sub_answer
+      else return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Register page is under developing"
 
 loginPage request = do
   answer where
@@ -54,11 +74,12 @@ loginPage request = do
       then do
         conn <- getSqlConnection db  
         db_pass <- selectUserByName conn (fromJust login)
+        sqlDisconnect conn
         let sub_answer = if (null db_pass) 
                           then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Such user is not exist"
                           else if db_pass /= (fromJust pass)
                                 then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Password is incorrect"
-                                else show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Set-Cookie: user_id=" ++ fromJust login]}) ++ "Autorized successfully"
+                                else show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Set-Cookie: user_id=" ++ fromJust login, "Location: /main"]})
         return sub_answer
       else return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Login page is under developing"
 
@@ -66,7 +87,7 @@ errorPage request = return answer
   where answer = show(Response {version = "HTTP/1.1", statuscode = 404, headers=[]}) ++ "Page is not found"
 
 respond :: Request -> Handle -> IO ()
-respond request handle = do 
+respond request handle = do
   let redirect = lookup (path request) redirects  
   answer <- if redirect /= Nothing
      then return $ show(Response {version = "HTTP/1.1", statuscode = 301, headers=["Location: " ++ fromJust redirect]})
@@ -74,7 +95,15 @@ respond request handle = do
       "/main" -> mainPage request
       "/register" -> registerPage request
       "/login" -> loginPage request
-      otherwise -> errorPage request
+      otherwise -> do
+        let filepath = (tail (path request))
+        exists <- doesFileExist filepath
+        file <- if exists 
+                then readFile filepath
+                else return ""
+        if exists
+          then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ file
+          else errorPage request 
   hPutStr handle $ answer
 
 parseRequestHelper :: ([String], [(String,String)]) -> [(String,String)]

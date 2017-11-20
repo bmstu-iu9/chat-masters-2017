@@ -169,6 +169,8 @@ insertSampleData conn = do
 getSqlConnection :: FilePath -> IO Connection
 getSqlConnection = connectSqlite3
 
+sqlDisconnect conn = disconnect conn
+
 {-
 main = do
   conn <- connectSqlite3 db
