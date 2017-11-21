@@ -8,12 +8,12 @@ function checkEmail(){
 	{
 		if(err)
 		{
-			email.style.boxShadow =  "0 0 4px 0 #0f0";
+			email.style.boxShadow =  "0 0 4px 0 #f00";
 			window.alert("E-mail занят!");
 		}
 		else
 		{
-			email.style.boxShadow = "0 0 4px 0 #f00";
+			email.style.boxShadow = "0 0 4px 0 #0f0";
 			enableSubmit();
 		}
 	})
@@ -32,12 +32,12 @@ function checkLogin(){
 	{
 		if(err)
 		{
-			login.style.boxShadow =  "0 0 4px 0 #0f0";
+			login.style.boxShadow =  "0 0 4px 0 #f00";
 			window.alert("Выберите другое имя!");
 		}
 		else
 		{
-			login.style.boxShadow = "0 0 4px 0 #f00";
+			login.style.boxShadow = "0 0 4px 0 #0f0";
 			enableSubmit();
 		}
 	})
