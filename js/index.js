@@ -1,18 +1,24 @@
-$('.emailField').focusout(function(){
+"use strict";
+
+var email = document.getElementsByClassName('emailField')[0];
+var login = document.getElementsByClassName('loginField')[0];
+
+function checkEmail(){
 	validateEmail(function(err)
 	{
 		if(err)
 		{
-			$(this).css("box-shadow", "0 0 4px 0 #f00");
+			email.style.boxShadow =  "0 0 4px 0 #f00";
 			window.alert("E-mail занят!");
 		}
 		else
 		{
-			$(this).css("box-shadow", "0 0 4px 0 #0f0");
+			email.style.boxShadow = "0 0 4px 0 #0f0";
 			enableSubmit();
 		}
 	})
-});
+};
+
  
 function validateEmail(callback) {
     var emailToCheck = $('#emailField').val();
@@ -21,21 +27,21 @@ function validateEmail(callback) {
 		.error(function() { callback(true) })
 }
 
-$('.lognField').focusout(function(){
+function checkLogin(){
 	validateLogin(function(err)
 	{
 		if(err)
 		{
-			$(this).css("box-shadow", "0 0 4px 0 #f00");
+			login.style.boxShadow =  "0 0 4px 0 #f00";
 			window.alert("Выберите другое имя!");
 		}
 		else
 		{
-			$(this).css("box-shadow", "0 0 4px 0 #0f0");
+			login.style.boxShadow = "0 0 4px 0 #0f0";
 			enableSubmit();
 		}
 	})
-});
+};
  
 function validateLogin(callback) {
     var loginToCheck = $('#loginField').val();
@@ -45,7 +51,7 @@ function validateLogin(callback) {
 }
 
 function enableSubmit() {
-	if ($('.emailField').css("box-shadow") == "0 0 4px 0 #0f0" && $('.loginField').css("box-shadow") == "0 0 4px 0 #0f0") {
-		$(".submitBtn").prop( "disabled", false );
+	if (email.style.boxShadow == "0 0 4px 0 #0f0" && login.style.boxShadow == "0 0 4px 0 #0f0") {
+		document.getElementsByClassName('submitBtn')[0].style.display = "block";
 	}
 }
