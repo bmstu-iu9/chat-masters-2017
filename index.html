@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="UTF-8">
@@ -16,10 +16,10 @@
 			<fieldset>
 			<p class="login-msg"></p>
 			<form><!-- <form action = "файл обработки" method = "GET" target = "_blank"  -->
-				<input type="email" placeholder="Введите Ваш email адрес..." name = "emailField" class = "emailField" required />
-				<input type="password" placeholder="Ваш сложный пароль..." name = "passwordField" class = "passField" required />
-				<input type="text" placeholder="Имя пользователя" name = "loginField" class = "loginField"required />
-				<input type="submit" value="Зарегистрироваться" name = "sub" class = "submitBtn" disabled />
+				<input type="email" onblur="checkEmail()" placeholder="Введите Ваш email адрес..." name = "emailField" class = "emailField" required />
+				<input type="password"  placeholder="Ваш сложный пароль..." name = "passwordField" class = "passField" required />
+				<input type="text" onblur="checkLogin()" placeholder="Имя пользователя" name = "loginField" class = "loginField"required />
+				<input type="submit" style = "display: none" value="Зарегистрироваться" name = "sub" class = "submitBtn" disabled />
 			</form>
 			<a href="login.html" class="flipper">Уже зарегистрированы? Войти.</a>
 			</fieldset>
