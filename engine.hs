@@ -167,8 +167,8 @@ parseArgs n args = case args of
 trim = f . f
    where f = reverse . dropWhile isSpace
 
-list2Pair [f,s] = (f, s)
---list2Pair [f] = (f, "")
+list2Pair [f,s] = (trim f, s)
+list2Pair [f] = (f, "")
 
 tail2arglist n str = do
   let args = parseArgs n str
