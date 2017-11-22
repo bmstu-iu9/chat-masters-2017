@@ -41,7 +41,6 @@ mainPage request = do
   html <- readFile "client.html" 
   let answer = if user_id /= Nothing
                 then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ (printf html (fromJust user_id))
-                --then show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Main page is under developing\r\nHello, " ++ (fromJust user_id)
                 else show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Location: /login"]})
   return answer where
     cookies = lookup "Cookie" (options(request))
@@ -55,20 +54,15 @@ registerPage request = do
   let answer = if ((login /= Nothing) && (pass /= Nothing))
                 then do
                   conn <- getSqlConnection db  
-                  db_pass <- selectUserByName conn (fromJust login)
+                  insertUser conn (fromJust login) (fromJust pass)
                   sqlDisconnect conn
-                  sub_answer <- if (not (null db_pass)) 
-                                  then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Such user is already exist"
-                                  else do 
-                                    insertUser conn (fromJust login) (fromJust pass)
-                                    return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Registration is successfull"
-                  return sub_answer
+                  return $ show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Set-Cookie: user_id=" ++ fromJust login, "Location: /main"]})
                 else do 
                   html <- readFile "register.html" 
                   return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ html
   answer where
-    login = lookup "login" (args(request))
-    pass = lookup "pass" (args(request))
+    login = lookup "loginField" (args(request))
+    pass = lookup "passwordField" (args(request))
     
 loginPage request = do
   let answer = if ((login /= Nothing) && (pass /= Nothing))

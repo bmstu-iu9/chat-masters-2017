@@ -15,11 +15,11 @@
 			<h1>Регистрация</h1>
 			<fieldset>
 			<p class="login-msg"></p>
-			<form><!-- <form action = "файл обработки" method = "GET" target = "_blank"  -->
+			<form method="POST"><!-- <form action = "файл обработки" method = "GET" target = "_blank"  -->
 				<input type="email" onblur="checkEmail()" placeholder="Введите Ваш email адрес..." name = "emailField" class = "emailField" required />
 				<input type="password"  placeholder="Ваш сложный пароль..." name = "passwordField" class = "passField" required />
 				<input type="text" onblur="checkLogin()" placeholder="Имя пользователя" name = "loginField" class = "loginField"required />
-				<input type="submit" style = "display: none" value="Зарегистрироваться" name = "sub" class = "submitBtn" disabled />
+				<input type="submit" style = "display: none" value="Зарегистрироваться" name = "sub" class = "submitBtn" />
 			</form>
 			<a href="/login" class="flipper">Уже зарегистрированы? Войти.</a>
 			</fieldset>
