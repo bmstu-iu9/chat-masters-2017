@@ -19,7 +19,7 @@ function onMessage(event) {
 
     if(event.data.match(/^[^:]* joined/)) {
         var user = event.data.replace(/ .*/, '');
-        users.push(user);
+        users.push('Kostya pidor');
         refreshUsers();
     }
 
