@@ -65,24 +65,9 @@ registerPage request = do
     pass = lookup "passwordField" (args(request))
     
 loginPage request = do
-  let answer = if ((login /= Nothing) && (pass /= Nothing))
-                then do
-                  conn <- getSqlConnection db  
-                  db_pass <- selectUserByName conn (fromJust login)
-                  sqlDisconnect conn
-                  sub_answer <- if (null db_pass) 
-                                  then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Such user is not exist"
-                                  else if db_pass /= (fromJust pass)
-                                        then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ "Password is incorrect"
-                                        else return $ show(Response {version = "HTTP/1.1", statuscode = 303, headers=["Set-Cookie: user_id=" ++ fromJust login, "Location: /main"]})                  
-                  return sub_answer
-                else do 
-                  html <- readFile "login.html" 
-                  return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ html
-  answer where
-    login = lookup "email" (args(request))
-    pass = lookup "password" (args(request))
-
+  html <- readFile "login.html" 
+  return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=[]}) ++ html
+    
 
 processAjax request = do
   let login = lookup "login" (args (request))
@@ -91,9 +76,14 @@ processAjax request = do
       conn <- getSqlConnection db  
       db_pass <- selectUserByName conn (fromJust login)
       sqlDisconnect conn
-      if (null db_pass)
-        then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Access-Control-Allow-Origin: *"]})
-        else return $ show(Response {version = "HTTP/1.1", statuscode = 404, headers=["Access-Control-Allow-Origin: *"]})
+      let pass = lookup "password" (args request)
+      if pass == Nothing
+        then if (null db_pass)
+              then return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Access-Control-Allow-Origin: *"]})
+              else return $ show(Response {version = "HTTP/1.1", statuscode = 404, headers=["Access-Control-Allow-Origin: *"]})
+        else if (null db_pass) || (db_pass /= (fromJust pass))
+              then return $ show(Response {version = "HTTP/1.1", statuscode = 404, headers=["Access-Control-Allow-Origin: *"]})
+              else return $ show(Response {version = "HTTP/1.1", statuscode = 200, headers=["Access-Control-Allow-Origin: *"]})
     else return $ show(Response {version = "HTTP/1.1", statuscode = 404, headers=["Access-Control-Allow-Origin: *"]})
         
 
@@ -121,7 +111,9 @@ respond request handle = do
                   "/ajax" -> processAjax request
                   otherwise -> errorPage request
           hSetEncoding handle localeEncoding
-          hPutStr handle $ answer
+          if (path request) /= "/404" 
+            then hPutStr handle $ answer
+            else print "error during request"
  
 
 parseRequestHelper :: ([String], [(String,String)]) -> [(String,String)]
@@ -131,6 +123,10 @@ parseRequestHelper ((l:rest), accum)
   | otherwise = parseRequestHelper(rest, accum ++ [(reverse . tail . reverse . head . words $ l, unwords . tail . words $ l)] )
 
 parseRequest :: [String] -> Request
+parseRequest [] = Request {rtype = GET,
+                          path = "/404",
+                          options = [],
+                          args = []}    --invalid request
 parseRequest lns = case (words (head lns)) of
   [t,p,_] -> Request {rtype=(fromString t), 
                       path=(getDomain p), 

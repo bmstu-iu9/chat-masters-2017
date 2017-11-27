@@ -94,6 +94,22 @@ html {
 	box-shadow: inset 0 1px 1px rgba(255,255,0,.6); 
 	background-image: linear-gradient(rgba(255,207,92,.7), rgba(223,156,38,.8));
 	}
+
+#login input[type="button"] { 
+	width: 260px; 
+	padding: 12px 20px; 
+	margin: 15px 0; 
+	border: 1px solid #C1711B; 
+	border-radius: 3px; 
+	color: #111; 
+	font-size: 1.3em; 
+	font-weight: bold; 
+	text-shadow: 1px 1px 1px rgba(255,255,255,.5); 
+	cursor: pointer;
+	background-color: #FFB83A; 
+	box-shadow: inset 0 1px 1px rgba(255,255,0,.6); 
+	background-image: linear-gradient(rgba(255,207,92,.7), rgba(223,156,38,.8));
+	}
 	
 #login input[disabled] { 
 	width: 260px; 
@@ -116,6 +132,16 @@ html {
 	}
 	
 #login input[type="submit"]:active { 
+	padding: 13px 20px 11px; 
+	text-shadow: -1px -1px 1px rgba(255,255,255,.6); 
+	box-shadow: inset 0 1px 4px rgba(0,0,0,.2); 
+	}
+
+#login input[type="button"]:hover {	
+	background-color: #F5FF00; 
+	}
+	
+#login input[type="button"]:active { 
 	padding: 13px 20px 11px; 
 	text-shadow: -1px -1px 1px rgba(255,255,255,.6); 
 	box-shadow: inset 0 1px 4px rgba(0,0,0,.2); 

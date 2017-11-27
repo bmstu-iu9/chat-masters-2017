@@ -13,11 +13,11 @@
 		<div class="form-login">
 			<h1>Авторизация</h1>
 			<fieldset>
-				<form onsubmit = "onSubmit()">
+				<div>
 					<input type="text" placeholder="Логин" name = "email" class = "email" required />
 					<input type="password" placeholder="Пароль" name = "password" class = "password" required />
-					<input type="submit" value="ВОЙТИ" name = "sub"/>
-				</form>
+					<input type="button" value="ВОЙТИ" name = "sub" onclick = "onSubmit()"/>
+				</div>
 				<p><a href="/register">Нет аккаунта? Регистрация.</a><br>
 			</fieldset>
 		</div>
