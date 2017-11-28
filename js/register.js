@@ -50,9 +50,11 @@ function checkLogin(){
  
 function validateLogin(callback) {
 	var loginToCheck = login1.value;
-	$.get('http://localhost:5002/ajax', {login: loginToCheck})
-		.success(function() { callback(false) })
-		.error(function() { callback(true) })
+	if (loginToCheck) {
+		$.get('http://localhost:5002/ajax', {login: loginToCheck})
+			.success(function() { callback(false) })
+			.error(function() { callback(true) })
+	}
 }
 
 function enableSubmit() {
